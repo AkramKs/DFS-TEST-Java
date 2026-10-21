@@ -83,6 +83,29 @@ class MicrowaveControllerTest {
     }
 
     @Nested
+    @DisplayName("Remaining Cooking Time")
+    class RemainingCookingTimeTests {
+
+        @Test
+        @DisplayName("Should return remaining cooking time from the underlying timer")
+        void shouldReturnRemainingCookingTimeFromTimer() {
+            when(timer.getRemainingSeconds()).thenReturn(45L);
+
+            assertThat(controller.getRemainingCookingTimeSeconds()).isEqualTo(45L);
+            verify(timer).getRemainingSeconds();
+        }
+
+        @Test
+        @DisplayName("Should return 0 seconds when timer is idle or stopped")
+        void shouldReturnZeroRemainingSeconds_whenTimerIsIdle() {
+            when(timer.getRemainingSeconds()).thenReturn(0L);
+
+            assertThat(controller.getRemainingCookingTimeSeconds()).isZero();
+            verify(timer).getRemainingSeconds();
+        }
+    }
+
+    @Nested
     @DisplayName("User Story 1 & 2: Door Light Control")
     class DoorLightTests {
 
