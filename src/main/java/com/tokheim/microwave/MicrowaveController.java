@@ -78,9 +78,15 @@ public class MicrowaveController implements IMicrowave.EventListener {
     }
 
     private void startHeating() {
-        this.isHeating = true;
         microwave.turnOnHeater();
-        timer.start(MicrowaveController.COOK_DURATION_SECONDS, this::onTimerExpired);
+        this.isHeating = true;
+        try {
+            timer.start(MicrowaveController.COOK_DURATION_SECONDS, this::onTimerExpired);
+        } catch (RuntimeException e) {
+            this.isHeating = false;
+            microwave.turnOffHeater();
+            throw e;
+        }
     }
 
     private void stopHeatingAndResetTimer() {

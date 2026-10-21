@@ -16,6 +16,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -238,6 +239,112 @@ class MicrowaveControllerTest {
             onExpire.run();
 
             verify(microwave, never()).turnOffHeater();
+        }
+    }
+
+    @Nested
+    @DisplayName("Exceptional Flows & Defensive Edge Cases")
+    class ExceptionalFlowTests {
+
+        @Test
+        @DisplayName("Should throw NullPointerException when constructor dependencies are null")
+        void shouldThrowNpe_whenConstructorDependenciesAreNull() {
+            assertThatThrownBy(() -> new MicrowaveController(null, light, timer))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessageContaining("microwave must not be null");
+
+            assertThatThrownBy(() -> new MicrowaveController(microwave, null, timer))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessageContaining("light must not be null");
+
+            assertThatThrownBy(() -> new MicrowaveController(microwave, light, null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessageContaining("timer must not be null");
+
+            // Overloaded 2-argument constructor
+            assertThatThrownBy(() -> new MicrowaveController(null, light))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessageContaining("microwave must not be null");
+
+            assertThatThrownBy(() -> new MicrowaveController(microwave, null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessageContaining("light must not be null");
+        }
+
+        @Test
+        @DisplayName("Should fail fast if hardware sensor throws an exception during initialization")
+        void shouldFailFast_whenHardwareThrowsDuringInitialization() {
+            IMicrowave faultyMicrowave = mock(IMicrowave.class);
+            when(faultyMicrowave.isDoorOpen()).thenThrow(new IllegalStateException("Sensor read error"));
+
+            assertThatThrownBy(() -> new MicrowaveController(faultyMicrowave, light, timer))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessage("Sensor read error");
+        }
+
+        @Test
+        @DisplayName("Should keep state consistent and not start timer if heater fails to turn on")
+        void shouldKeepStateConsistent_whenHeaterFailsToTurnOn() {
+            doThrow(new RuntimeException("Heater element fault")).when(microwave).turnOnHeater();
+
+            assertThatThrownBy(() -> controller.onStartButtonPressed())
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessage("Heater element fault");
+
+            assertThat(controller.isHeating()).isFalse();
+            verify(timer, never()).start(anyLong(), any());
+        }
+
+        @Test
+        @DisplayName("Should roll back state and turn off heater if timer fails to start")
+        void shouldRollbackState_whenTimerFailsToStart() {
+            doThrow(new RuntimeException("Timer allocation failed")).when(timer).start(anyLong(), any());
+
+            assertThatThrownBy(() -> controller.onStartButtonPressed())
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessage("Timer allocation failed");
+
+            assertThat(controller.isHeating()).isFalse();
+            verify(microwave).turnOffHeater();
+        }
+
+        @Test
+        @DisplayName("Should handle duplicate door open events idempotently without side effects")
+        void shouldHandleDuplicateDoorOpenEventsIdempotently() {
+            controller.onDoorStatusChanged(true);
+            clearInvocations(light);
+
+            // Redundant second open event
+            controller.onDoorStatusChanged(true);
+
+            verify(light).turnOnLight();
+            assertThat(controller.isDoorOpen()).isTrue();
+            assertThat(controller.isHeating()).isFalse();
+        }
+
+        @Test
+        @DisplayName("Should handle duplicate door close events idempotently without side effects")
+        void shouldHandleDuplicateDoorCloseEventsIdempotently() {
+            // Already closed initially
+            controller.onDoorStatusChanged(false);
+
+            verify(light).turnOffLight();
+            assertThat(controller.isDoorOpen()).isFalse();
+            assertThat(controller.isHeating()).isFalse();
+        }
+
+        @Test
+        @DisplayName("Should safely ignore start button presses when pressed repeatedly with open door")
+        void shouldSafelyIgnoreStartButton_whenPressedRepeatedlyWithOpenDoor() {
+            controller.onDoorStatusChanged(true);
+            clearInvocations(microwave, light, timer);
+
+            controller.onStartButtonPressed();
+            controller.onStartButtonPressed();
+            controller.onStartButtonPressed();
+
+            verifyNoInteractions(microwave, timer);
+            assertThat(controller.isHeating()).isFalse();
         }
     }
 
