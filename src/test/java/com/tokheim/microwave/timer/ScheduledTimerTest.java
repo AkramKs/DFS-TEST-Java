@@ -139,6 +139,19 @@ class ScheduledTimerTest {
         }
 
         @Test
+        @DisplayName("Should use custom scheduler and not shut it down on close")
+        void shouldUseCustomScheduler_andNotShutdownOnClose() {
+            java.util.concurrent.ScheduledExecutorService customScheduler = java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
+            try {
+                ScheduledTimer customTimer = new ScheduledTimer(customScheduler);
+                customTimer.close();
+                assertThat(customScheduler.isShutdown()).isFalse();
+            } finally {
+                customScheduler.shutdownNow();
+            }
+        }
+
+        @Test
         @DisplayName("Should be idempotent when closed multiple times")
         void shouldBeIdempotent_whenClosedMultipleTimes() {
             timer = new ScheduledTimer();

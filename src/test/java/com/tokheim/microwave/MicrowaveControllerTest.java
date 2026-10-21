@@ -80,6 +80,22 @@ class MicrowaveControllerTest {
             assertThat(c.isDoorOpen()).isTrue();
             assertThat(c.isHeating()).isFalse();
         }
+
+        @Test
+        @DisplayName("Should initialize properly using the two-argument constructor with default timer")
+        void shouldInitializeWithDefaultTimer_usingTwoArgConstructor() {
+            IMicrowave mockMicrowave = mock(IMicrowave.class);
+            ILight mockLight = mock(ILight.class);
+            when(mockMicrowave.isDoorOpen()).thenReturn(false);
+
+            MicrowaveController c = new MicrowaveController(mockMicrowave, mockLight);
+
+            verify(mockLight).turnOffLight();
+            verify(mockMicrowave).turnOffHeater();
+            assertThat(c.isDoorOpen()).isFalse();
+            assertThat(c.isHeating()).isFalse();
+            assertThat(c.getRemainingCookingTimeSeconds()).isZero();
+        }
     }
 
     @Nested

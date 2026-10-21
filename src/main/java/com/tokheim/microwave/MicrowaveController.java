@@ -25,7 +25,7 @@ public class MicrowaveController implements IMicrowave.EventListener {
         this.light = Objects.requireNonNull(light, "light must not be null");
         this.timer = Objects.requireNonNull(timer, "timer must not be null");
 
-     // synchronized Ensures only one thread can touch the microwave's state at a time.
+        // Ensures only one thread can touch the microwave's state at a time.
         synchronized (this) {
             this.isDoorOpen = microwave.isDoorOpen();
             this.isHeating = false;
