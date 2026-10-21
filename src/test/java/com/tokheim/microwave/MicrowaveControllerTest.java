@@ -245,6 +245,13 @@ class MicrowaveControllerTest {
     @DisplayName("Thread Safety & Concurrency")
     class ConcurrencyTests {
 
+        /**
+         * This test guarantees that:
+         * 1. The controller's monitor locks release cleanly.
+         * 2. Multiple threads competing for the controller locks do not deadlock.
+         * 3. No thread throws an unhandled exception that would halt execution.
+         */
+
         @Test
         @DisplayName("Should handle concurrent events without race conditions or deadlocks")
         void shouldHandleConcurrentEventsSafely() throws InterruptedException {
