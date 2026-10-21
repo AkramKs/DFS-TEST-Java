@@ -71,6 +71,25 @@ class ScheduledTimerTest {
         assertThat(timer.isRunning()).isFalse();
     }
 
+    @Test
+    @DisplayName("Should decrement remaining seconds on tick before countdown reaches zero")
+    void shouldDecrementRemainingSecondsBeforeReachingZero() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
+        timer = new ScheduledTimer();
+
+        timer.start(2, latch::countDown);
+
+        // Wait 1.1s for the first tick
+        Thread.sleep(1100);
+        assertThat(timer.getRemainingSeconds()).isEqualTo(1L);
+        assertThat(timer.isRunning()).isTrue();
+
+        // Wait for final expiration
+        boolean expired = latch.await(2000, TimeUnit.MILLISECONDS);
+        assertThat(expired).isTrue();
+        assertThat(timer.getRemainingSeconds()).isZero();
+    }
+
     @Nested
     @DisplayName("Exceptional Flows & Boundary Conditions")
     class ExceptionalFlowTests {
